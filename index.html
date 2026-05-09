@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="stylesheet" href="css/leaflet.css" />
+    <link rel="stylesheet" href="css/L.Control.Layers.Tree.css" />
+    <link rel="stylesheet" href="css/qgis2web.css" />
+    <link rel="stylesheet" href="css/fontawesome-all.min.css" />
+    <link rel="stylesheet" href="css/leaflet.photon.css" />
+    <style>
+      html,
+      body,
+      #map {
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+      }
+
+      /* ── Map Loading Overlay ── */
+      #map-loading {
+        position: fixed;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.85);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e2e8f0;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      .loading-text {
+        font-size: 14px;
+        color: #475569;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── Property Search Control ── */
+      .property-search-control {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      .search-row {
+        display: flex;
+        align-items: center;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        border: 1.5px solid #d0d7de;
+        transition: border-color 0.2s;
+      }
+      .search-row:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 2px 16px rgba(59, 130, 246, 0.25);
+      }
+      #property-search-input {
+        border: none;
+        outline: none;
+        padding: 9px 12px;
+        font-size: 14px;
+        width: 220px;
+        color: #1e293b;
+        background: transparent;
+      }
+      #property-search-input::placeholder {
+        color: #94a3b8;
+      }
+      #property-search-btn {
+        border: none;
+        background: #3b82f6;
+        color: #fff;
+        padding: 9px 13px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #property-search-btn:hover {
+        background: #2563eb;
+      }
+      #property-search-btn svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: #fff;
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #search-clear-btn {
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        padding: 9px 8px;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.15s;
+      }
+      #search-clear-btn:hover {
+        color: #475569;
+      }
+      #search-message {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        padding: 7px 12px;
+        font-size: 13px;
+        display: none;
+        max-width: 260px;
+        border-left: 3px solid #3b82f6;
+      }
+      #search-message.error {
+        border-left-color: #ef4444;
+        color: #b91c1c;
+      }
+      #search-message.success {
+        border-left-color: #22c55e;
+        color: #15803d;
+      }
+
+      /* ── Sync Indicator ── */
+      #sync-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #fff;
+        border-radius: 6px;
+        padding: 5px 10px;
+        font-size: 12px;
+        color: #475569;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        user-select: none;
+        transition: box-shadow 0.15s;
+      }
+      #sync-indicator:hover {
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+      }
+      #sync-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #94a3b8;
+        flex-shrink: 0;
+        transition: background 0.3s;
+      }
+      @keyframes pulse-dot {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+    </style>
+    <title></title>
+  </head>
+  <body>
+    <!-- Loading overlay shown while fetching sheet data on startup -->
+    <div id="map-loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading property data…</div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Search + Sync Controls -->
+    <div class="property-search-control" id="searchControl">
+      <div class="search-row">
+        <input
+          type="text"
+          id="property-search-input"
+          placeholder="Search by ID…"
+          autocomplete="off"
+        />
+        <button id="search-clear-btn" title="Clear search">&#x2715;</button>
+        <button id="property-search-btn" title="Search">
+          <svg viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="16.5" y1="16.5" x2="22" y2="22" />
+          </svg>
+        </button>
+      </div>
+      <div id="search-message"></div>
+      <!-- Sync status pill — click to manually refresh from Sheets -->
+      <div id="sync-indicator" title="Click to refresh data from Google Sheets">
+        <div id="sync-dot"></div>
+        <span id="sync-label">Not synced</span>
+      </div>
+    </div>
+
+    <script src="js/qgis2web_expressions.js"></script>
+    <script src="js/leaflet.js"></script>
+    <script src="js/L.Control.Layers.Tree.min.js"></script>
+    <script src="js/leaflet.rotatedMarker.js"></script>
+    <script src="js/leaflet.pattern.js"></script>
+    <script src="js/leaflet-hash.js"></script>
+    <script src="js/Autolinker.min.js"></script>
+    <script src="js/rbush.min.js"></script>
+    <script src="js/labelgun.min.js"></script>
+    <script src="js/labels.js"></script>
+    <script src="js/leaflet.photon.js"></script>
+    <script src="data/background_1.js"></script>
+    <script src="data/propertiescopy_2.js"></script>
+    <script>
+      // ================================================================
+      // GOOGLE SHEETS INTEGRATION
+      // ----------------------------------------------------------------
+      // 1. In Google Sheets: File → Share → Publish to web
+      // 2. Choose your sheet tab, set format to CSV, click Publish
+      // 3. Paste the published CSV URL below, replacing the placeholder
+      // ================================================================
+      var SHEET_CSV_URL =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vSsSChToqjTxebXCSCiWsDKfxhHOYQB9TfvaxqJcXCsQnpRoeZRsiRFezGHJcSsyp74JYYPNJhbIyom/pub?gid=0&single=true&output=csv";
+      var REFRESH_INTERVAL_MS = 60000; // auto-refresh every 60 seconds
+
+      // Parse a single CSV line, handling quoted fields with commas inside
+      function parseCSVLine(line) {
+        var result = [],
+          inQuotes = false,
+          current = "";
+        for (var i = 0; i < line.length; i++) {
+          var ch = line[i];
+          if (ch === '"') {
+            inQuotes = !inQuotes;
+          } else if (ch === "," && !inQuotes) {
+            result.push(current.trim());
+            current = "";
+          } else {
+            current += ch;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      }
+
+      // Parse full CSV text into a lookup object keyed by the ID column
+      function parseCSV(text) {
+        var lines = text.trim().split(/\r?\n/);
+        if (lines.length < 2) return {};
+        var headers = parseCSVLine(lines[0]);
+        var lookup = {};
+        for (var i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          var values = parseCSVLine(lines[i]);
+          var row = {};
+          headers.forEach(function (h, idx) {
+            row[h] = values[idx] !== undefined ? values[idx] : "";
+          });
+          if (row["ID"]) {
+            lookup[String(row["ID"]).trim()] = row;
+          }
+        }
+        return lookup;
+      }
+
+      // Write sheet values back into the GeoJSON feature properties in-place
+      // so the existing style and popup functions pick them up automatically
+      function mergeSheetData(lookup) {
+        json_propertiescopy_2.features.forEach(function (feature) {
+          var id = String(feature.properties["id"] || "").trim();
+          if (!id || !lookup[id]) return;
+          var row = lookup[id];
+          if (row["Status"] !== undefined) {
+            feature.properties["Master List - Castaways - Sheet1_Status"] =
+              row["Status"];
+          }
+          if (row["Phase"] !== undefined) {
+            feature.properties["Master List - Castaways - Sheet1_Phase"] =
+              row["Phase"];
+          }
+        });
+      }
+
+      // Update the sync status pill in the UI
+      function setSyncState(state) {
+        var dot = document.getElementById("sync-dot");
+        var label = document.getElementById("sync-label");
+        dot.style.animation = "";
+        if (state === "syncing") {
+          dot.style.background = "#f59e0b";
+          dot.style.animation = "pulse-dot 1s ease-in-out infinite";
+          label.textContent = "Syncing…";
+        } else if (state === "ok") {
+          dot.style.background = "#22c55e";
+          var t = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          label.textContent = "Updated " + t;
+        } else {
+          dot.style.background = "#ef4444";
+          label.textContent = "Sync failed — click to retry";
+        }
+      }
+
+      // Fetch CSV from Google Sheets, merge into GeoJSON, re-style layer if live
+      async function fetchAndSync(isInitial) {
+        if (SHEET_CSV_URL === "YOUR_GOOGLE_SHEET_CSV_URL_HERE") {
+          document.getElementById("sync-dot").style.background = "#f59e0b";
+          document.getElementById("sync-label").textContent =
+            "No sheet URL configured";
+          return;
+        }
+        try {
+          setSyncState("syncing");
+          var response = await fetch(SHEET_CSV_URL);
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          var text = await response.text();
+          var lookup = parseCSV(text);
+          mergeSheetData(lookup);
+          // On background refreshes, re-apply styles to reflect any changes
+          if (!isInitial && layer_propertiescopy_2) {
+            layer_propertiescopy_2.setStyle(style_propertiescopy_2_0);
+          }
+          setSyncState("ok");
+        } catch (e) {
+          console.warn("Google Sheets sync failed:", e);
+          setSyncState("error");
+        }
+      }
+
+      // ================================================================
+      // MAP SETUP
+      // ================================================================
+      var map = L.map("map", {
+        zoomControl: false,
+        maxZoom: 28,
+        minZoom: 1,
+      }).fitBounds([
+        [15.39740077548477, -61.43595114151986],
+        [15.43093231423619, -61.40241960276844],
+      ]);
+      var hash = new L.Hash(map);
+      map.attributionControl.setPrefix(
+        '<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>',
+      );
+      var autolinker = new Autolinker({
+        truncate: { length: 30, location: "smart" },
+      });
+
+      function removeEmptyRowsFromPopupContent(content, feature) {
+        var tempDiv = document.createElement("div");
+        tempDiv.innerHTML = content;
+        var rows = tempDiv.querySelectorAll("tr");
+        for (var i = 0; i < rows.length; i++) {
+          var td = rows[i].querySelector("td.visible-with-data");
+          var key = td ? td.id : "";
+          if (
+            td &&
+            td.classList.contains("visible-with-data") &&
+            feature.properties[key] == null
+          ) {
+            rows[i].parentNode.removeChild(rows[i]);
+          }
+        }
+        return tempDiv.innerHTML;
+      }
+
+      function addClassToPopupIfMedia(content, popup) {
+        var tempDiv = document.createElement("div");
+        tempDiv.innerHTML = content;
+        var imgTd = tempDiv.querySelector("td img");
+        if (imgTd) {
+          var src = imgTd.getAttribute("src");
+          if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+            popup._contentNode.classList.add("media");
+            setTimeout(function () {
+              popup.update();
+            }, 10);
+          } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+            var audio = document.createElement("audio");
+            audio.controls = true;
+            audio.src = src;
+            imgTd.parentNode.replaceChild(audio, imgTd);
+            popup._contentNode.classList.add("media");
+            setTimeout(function () {
+              popup.setContent(tempDiv.innerHTML);
+              popup.update();
+            }, 10);
+          } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+            var video = document.createElement("video");
+            video.controls = true;
+            video.src = src;
+            video.style.width = "400px";
+            video.style.height = "300px";
+            video.style.maxHeight = "60vh";
+            video.style.maxWidth = "60vw";
+            imgTd.parentNode.replaceChild(video, imgTd);
+            popup._contentNode.classList.add("media");
+            video.addEventListener("loadedmetadata", function () {
+              popup.update();
+            });
+            setTimeout(function () {
+              popup.setContent(tempDiv.innerHTML);
+              popup.update();
+            }, 10);
+          } else {
+            popup._contentNode.classList.remove("media");
+          }
+        } else {
+          popup._contentNode.classList.remove("media");
+        }
+      }
+
+      var zoomControl = L.control.zoom({ position: "topleft" }).addTo(map);
+      var bounds_group = new L.featureGroup([]);
+      function setBounds() {}
+
+      map.createPane("pane_OpenStreetMap_0");
+      map.getPane("pane_OpenStreetMap_0").style.zIndex = 400;
+      var layer_OpenStreetMap_0 = L.tileLayer(
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          pane: "pane_OpenStreetMap_0",
+          opacity: 1.0,
+          attribution: "",
+          minZoom: 1,
+          maxZoom: 28,
+          minNativeZoom: 0,
+          maxNativeZoom: 19,
+        },
+      );
+      map.addLayer(layer_OpenStreetMap_0);
+
+      function pop_background_1(feature, layer) {
+        var popupContent =
+          '<table><tr><td colspan="2">' +
+          (feature.properties["id"] !== null
+            ? autolinker.link(
+                String(feature.properties["id"])
+                  .replace(/'/g, "'")
+                  .toLocaleString(),
+              )
+            : "") +
+          "</td></tr></table>";
+        var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+        layer.on("popupopen", function (e) {
+          addClassToPopupIfMedia(content, e.popup);
+        });
+        layer.bindPopup(content, { maxHeight: 400 });
+      }
+      function style_background_1_0() {
+        return {
+          pane: "pane_background_1",
+          opacity: 1,
+          color: "rgba(35,35,35,1.0)",
+          dashArray: "",
+          lineCap: "butt",
+          lineJoin: "miter",
+          weight: 1.0,
+          fill: true,
+          fillOpacity: 1,
+          fillColor: "rgba(203,233,175,1.0)",
+          interactive: true,
+        };
+      }
+      map.createPane("pane_background_1");
+      map.getPane("pane_background_1").style.zIndex = 401;
+      map.getPane("pane_background_1").style["mix-blend-mode"] = "normal";
+      var layer_background_1 = new L.geoJson(json_background_1, {
+        attribution: "",
+        interactive: true,
+        dataVar: "json_background_1",
+        layerName: "layer_background_1",
+        pane: "pane_background_1",
+        onEachFeature: pop_background_1,
+        style: style_background_1_0,
+      });
+      bounds_group.addLayer(layer_background_1);
+      map.addLayer(layer_background_1);
+
+      // Declared here so search code below can reference it after initMap() runs
+      var layer_propertiescopy_2;
+
+      function pop_propertiescopy_2(feature, layer) {
+        var props = feature.properties;
+        var popupContent =
+          "<table>" +
+          '<tr><td colspan="2">' +
+          (props["id"] !== null
+            ? autolinker.link(
+                String(props["id"]).replace(/'/g, "'").toLocaleString(),
+              )
+            : "") +
+          "</td></tr>" +
+          '<tr><td colspan="2">' +
+          (props["realID"] !== null
+            ? autolinker.link(
+                String(props["realID"]).replace(/'/g, "'").toLocaleString(),
+              )
+            : "") +
+          "</td></tr>" +
+          '<tr><td colspan="2">' +
+          (props["status"] !== null
+            ? autolinker.link(
+                String(props["status"]).replace(/'/g, "'").toLocaleString(),
+              )
+            : "") +
+          "</td></tr>" +
+          '<tr><td colspan="2">' +
+          (props["Master List - Castaways - Sheet1_Status"] !== null
+            ? autolinker.link(
+                String(props["Master List - Castaways - Sheet1_Status"])
+                  .replace(/'/g, "'")
+                  .toLocaleString(),
+              )
+            : "") +
+          "</td></tr>" +
+          '<tr><td colspan="2">' +
+          (props["Master List - Castaways - Sheet1_Phase"] !== null
+            ? autolinker.link(
+                String(props["Master List - Castaways - Sheet1_Phase"])
+                  .replace(/'/g, "'")
+                  .toLocaleString(),
+              )
+            : "") +
+          "</td></tr>" +
+          "</table>";
+        var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+        layer.on("popupopen", function (e) {
+          addClassToPopupIfMedia(content, e.popup);
+        });
+        layer.bindPopup(content, { maxHeight: 400 });
+      }
+
+      function style_propertiescopy_2_0(feature) {
+        switch (
+          String(feature.properties["Master List - Castaways - Sheet1_Status"])
+        ) {
+          case "For Sale":
+            return {
+              pane: "pane_propertiescopy_2",
+              opacity: 1,
+              color: "rgba(35,35,35,1.0)",
+              dashArray: "",
+              lineCap: "butt",
+              lineJoin: "miter",
+              weight: 1.0,
+              fill: true,
+              fillOpacity: 1,
+              fillColor: "rgba(100,193,93,1.0)",
+              interactive: true,
+            };
+          case "Sold":
+            return {
+              pane: "pane_propertiescopy_2",
+              opacity: 1,
+              color: "rgba(35,35,35,1.0)",
+              dashArray: "",
+              lineCap: "butt",
+              lineJoin: "miter",
+              weight: 1.0,
+              fill: true,
+              fillOpacity: 1,
+              fillColor: "rgba(230,19,19,1.0)",
+              interactive: true,
+            };
+          default:
+            return {
+              pane: "pane_propertiescopy_2",
+              opacity: 1,
+              color: "rgba(35,35,35,1.0)",
+              dashArray: "",
+              lineCap: "butt",
+              lineJoin: "miter",
+              weight: 1.0,
+              fill: true,
+              fillOpacity: 1,
+              fillColor: "rgba(212,57,226,1.0)",
+              interactive: true,
+            };
+        }
+      }
+
+      map.createPane("pane_propertiescopy_2");
+      map.getPane("pane_propertiescopy_2").style.zIndex = 402;
+      map.getPane("pane_propertiescopy_2").style["mix-blend-mode"] = "normal";
+
+      // ================================================================
+      // INIT — fetch sheet data first, THEN draw the properties layer
+      // ================================================================
+      async function initMap() {
+        await fetchAndSync(true); // merge sheet data into GeoJSON before layer creation
+
+        layer_propertiescopy_2 = new L.geoJson(json_propertiescopy_2, {
+          attribution: "",
+          interactive: true,
+          dataVar: "json_propertiescopy_2",
+          layerName: "layer_propertiescopy_2",
+          pane: "pane_propertiescopy_2",
+          onEachFeature: pop_propertiescopy_2,
+          style: style_propertiescopy_2_0,
+        });
+        bounds_group.addLayer(layer_propertiescopy_2);
+        map.addLayer(layer_propertiescopy_2);
+        setBounds();
+
+        document.getElementById("map-loading").style.display = "none";
+
+        // Background auto-refresh — re-styles the live layer after each fetch
+        setInterval(function () {
+          fetchAndSync(false);
+        }, REFRESH_INTERVAL_MS);
+      }
+
+      initMap();
+
+      // ── Property Search ──────────────────────────────────────────────
+      var searchInput = document.getElementById("property-search-input");
+      var searchBtn = document.getElementById("property-search-btn");
+      var clearBtn = document.getElementById("search-clear-btn");
+      var searchMessage = document.getElementById("search-message");
+      var lastHighlightedLayer = null;
+
+      function showMessage(text, type) {
+        searchMessage.textContent = text;
+        searchMessage.className = type;
+        searchMessage.style.display = "block";
+      }
+      function hideMessage() {
+        searchMessage.style.display = "none";
+      }
+
+      function resetHighlight() {
+        if (lastHighlightedLayer) {
+          layer_propertiescopy_2.resetStyle(lastHighlightedLayer);
+          lastHighlightedLayer = null;
+        }
+      }
+
+      function doSearch() {
+        var query = searchInput.value.trim().toLowerCase();
+        if (!query || !layer_propertiescopy_2) return;
+        resetHighlight();
+        hideMessage();
+        var found = false;
+        layer_propertiescopy_2.eachLayer(function (layer) {
+          if (found) return;
+          var props = layer.feature.properties;
+          var idVal =
+            props["id"] != null ? String(props["id"]).toLowerCase() : "";
+          if (idVal === query) {
+            found = true;
+            var bounds = layer.getBounds();
+            map.fitBounds(bounds, { maxZoom: 20, padding: [60, 60] });
+            layer.setStyle({ color: "#f59e0b", weight: 4, fillOpacity: 0.85 });
+            lastHighlightedLayer = layer;
+            layer.openPopup(bounds.getCenter());
+            showMessage("✓ Found: " + props["id"], "success");
+          }
+        });
+        if (!found)
+          showMessage(
+            'No property found for "' + searchInput.value.trim() + '"',
+            "error",
+          );
+      }
+
+      searchBtn.addEventListener("click", doSearch);
+      searchInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") doSearch();
+      });
+      searchInput.addEventListener("input", function () {
+        clearBtn.style.display = this.value ? "flex" : "none";
+        if (!this.value) {
+          resetHighlight();
+          hideMessage();
+        }
+      });
+      clearBtn.addEventListener("click", function () {
+        searchInput.value = "";
+        clearBtn.style.display = "none";
+        resetHighlight();
+        hideMessage();
+        searchInput.focus();
+      });
+
+      // Clicking the sync pill triggers a manual refresh
+      document
+        .getElementById("sync-indicator")
+        .addEventListener("click", function () {
+          if (!layer_propertiescopy_2) return;
+          fetchAndSync(false);
+        });
+
+      document
+        .getElementById("searchControl")
+        .addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+      L.DomEvent.disableScrollPropagation(
+        document.getElementById("searchControl"),
+      );
+      // ────────────────────────────────────────────────────────────────
+    </script>
+  </body>
+</html>
