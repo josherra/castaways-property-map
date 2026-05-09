@@ -112,6 +112,38 @@
         font-size: 18px;
         color: #0f172a;
       }
+      .overview-control {
+        position: fixed;
+        top: 100px;
+        right: 16px;
+        z-index: 1100;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        background: #fff;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 2px 14px rgba(0, 0, 0, 0.12);
+        transition:
+          transform 0.2s,
+          opacity 0.2s,
+          background 0.2s;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .overview-control.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .overview-control:hover {
+        background: #f8fafc;
+        transform: translateY(-1px);
+      }
       .sidebar-content {
         flex: 1;
         overflow-y: auto;
@@ -634,6 +666,13 @@
         <span id="sync-label">Not synced</span>
       </div>
     </div>
+    <button
+      id="overview-btn"
+      class="overview-control"
+      title="Return to full map overview"
+    >
+      Overview
+    </button>
 
     <script src="js/qgis2web_expressions.js"></script>
     <script src="js/leaflet.js"></script>
@@ -989,12 +1028,43 @@
 
       var zoomControl = L.control.zoom({ position: "topleft" }).addTo(map);
       var bounds_group = new L.featureGroup([]);
-      function setBounds() {}
+      var fullBounds = null;
+
+      function setBounds() {
+        if (bounds_group.getLayers().length > 0) {
+          fullBounds = bounds_group.getBounds();
+          map.fitBounds(fullBounds, { padding: [50, 50] });
+          updateOverviewButton();
+        }
+      }
+
+      function updateOverviewButton() {
+        var button = document.getElementById("overview-btn");
+        if (!button || !fullBounds) return;
+
+        var currentBounds = map.getBounds();
+        var showButton = !currentBounds.contains(fullBounds);
+
+        if (showButton) {
+          button.classList.add("visible");
+        } else {
+          button.classList.remove("visible");
+        }
+      }
 
       // Close any open popups when clicking on empty map areas
       map.on("click", function () {
         map.closePopup();
       });
+
+      map.on("moveend zoomend", updateOverviewButton);
+
+      var overviewBtn = document.getElementById("overview-btn");
+      if (overviewBtn) {
+        overviewBtn.addEventListener("click", function () {
+          setBounds();
+        });
+      }
 
       map.createPane("pane_OpenStreetMap_0");
       map.getPane("pane_OpenStreetMap_0").style.zIndex = 400;
