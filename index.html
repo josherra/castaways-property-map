@@ -1055,6 +1055,12 @@
       // Close any open popups when clicking on empty map areas
       map.on("click", function () {
         map.closePopup();
+        resetHighlight();
+      });
+
+      // Clear highlight whenever a popup is closed
+      map.on("popupclose", function () {
+        resetHighlight();
       });
 
       map.on("moveend zoomend", updateOverviewButton);
@@ -1063,6 +1069,7 @@
       if (overviewBtn) {
         overviewBtn.addEventListener("click", function () {
           setBounds();
+          resetHighlight();
         });
       }
 
@@ -1288,11 +1295,18 @@
         searchMessage.style.display = "none";
       }
 
+      function clearActivePropertyItem() {
+        document.querySelectorAll(".property-item").forEach(function (el) {
+          el.classList.remove("active");
+        });
+      }
+
       function resetHighlight() {
         if (lastHighlightedLayer) {
           layer_propertiescopy_2.resetStyle(lastHighlightedLayer);
           lastHighlightedLayer = null;
         }
+        clearActivePropertyItem();
       }
 
       function doSearch() {
