@@ -114,13 +114,14 @@
       }
       .overview-control {
         position: fixed;
-        top: 100px;
-        right: 16px;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 1100;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 10px 14px;
+        padding: 10px 16px;
         border: 1px solid #d0d7de;
         border-radius: 8px;
         background: #fff;
@@ -142,7 +143,7 @@
       }
       .overview-control:hover {
         background: #f8fafc;
-        transform: translateY(-1px);
+        transform: translateX(-50%) translateY(-1px);
       }
       .sidebar-content {
         flex: 1;
@@ -320,6 +321,27 @@
         flex-shrink: 0;
       }
 
+      /* -- Layer Toggle Controls -- */
+      .layer-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+        font-size: 13px;
+      }
+      .layer-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #3b82f6;
+      }
+      .layer-item label {
+        cursor: pointer;
+        color: #0f172a;
+        flex: 1;
+        user-select: none;
+      }
+
       /* ── Property Search Control ── */
       .property-search-control {
         position: absolute;
@@ -333,6 +355,14 @@
         font-family: "Segoe UI", system-ui, sans-serif;
       }
 
+      /* ── Sync Indicator (moved to bottom-left) ── */
+      #sync-indicator {
+        position: fixed;
+        bottom: 16px;
+        left: 16px;
+        z-index: 1000;
+      }
+
       /* ── Sync Indicator ── */
       #sync-indicator {
         display: flex;
@@ -340,11 +370,11 @@
         gap: 6px;
         background: #fff;
         border-radius: 6px;
-        padding: 5px 10px;
+        padding: 8px 12px;
         font-size: 12px;
         color: #475569;
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
-        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        border: 1px solid #d0d7de;
         cursor: pointer;
         user-select: none;
         transition: box-shadow 0.15s;
@@ -544,6 +574,251 @@
       .labels-hidden .leaflet-tooltip.property-label {
         display: none;
       }
+
+      /* ────────────────────────────────────────────────────────────── */
+      /* Mobile-Friendly Adjustments */
+      /* ────────────────────────────────────────────────────────────── */
+      @media (max-width: 768px) {
+        /* Reduce sidebar width on tablets */
+        #sidebar {
+          width: 280px;
+        }
+
+        .sidebar-header h2 {
+          font-size: 16px;
+        }
+
+        .sidebar-toggle {
+          left: 290px;
+        }
+
+        #sidebar.collapsed ~ .sidebar-toggle {
+          left: 12px;
+        }
+
+        /* Make search control smaller */
+        .property-search-control {
+          right: 12px;
+          top: 50px;
+        }
+
+        #property-search-input {
+          width: 160px;
+          font-size: 13px;
+          padding: 7px 10px;
+        }
+
+        #property-search-btn {
+          padding: 7px 10px;
+        }
+
+        /* Increase touch targets */
+        .filter-buttons button,
+        .sidebar-section select,
+        .sidebar-section input {
+          min-height: 40px;
+        }
+
+        .property-item {
+          padding: 12px 14px;
+        }
+
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .stat-card {
+          padding: 12px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        /* Stack layout on small phones */
+        #sidebar {
+          width: 100%;
+          max-width: 85vw;
+        }
+
+        .sidebar-toggle {
+          left: calc(85vw + 8px);
+          top: 8px;
+          width: 32px;
+          height: 32px;
+        }
+
+        #sidebar.collapsed ~ .sidebar-toggle {
+          left: 8px;
+          top: 80px;
+        }
+
+        .sidebar-header h2 {
+          font-size: 14px;
+          margin: 0 0 8px 0;
+        }
+
+        .sidebar-header {
+          padding: 12px;
+        }
+
+        .sidebar-section {
+          padding: 10px 12px;
+        }
+
+        .sidebar-section h3 {
+          font-size: 11px;
+          margin: 0 0 8px 0;
+        }
+
+        /* Search control adjustment */
+        .property-search-control {
+          right: 8px;
+          top: 45px;
+          gap: 4px;
+        }
+
+        .search-row {
+          flex-direction: column;
+          border-radius: 6px;
+          overflow: visible;
+        }
+
+        #property-search-input {
+          width: 100%;
+          padding: 8px 10px;
+          border: 1px solid #d0d7de;
+          border-radius: 6px 6px 0 0;
+          font-size: 12px;
+        }
+
+        .search-row button {
+          width: 100%;
+          border-radius: 0;
+        }
+
+        #property-search-btn {
+          padding: 8px 10px;
+          border-radius: 0 0 6px 6px;
+        }
+
+        #search-clear-btn {
+          padding: 8px 10px;
+        }
+
+        #search-message {
+          max-width: calc(100vw - 32px);
+          font-size: 12px;
+          padding: 6px 10px;
+        }
+
+        /* Sync indicator adjustments */
+        #sync-indicator {
+          bottom: 12px;
+          left: 12px;
+          padding: 6px 10px;
+          font-size: 11px;
+        }
+
+        /* Overview button */
+        .overview-control {
+          font-size: 12px;
+          padding: 8px 12px;
+          top: 12px;
+        }
+
+        /* Property list max height */
+        #property-list {
+          max-height: 250px !important;
+        }
+
+        /* Stats grid */
+        .stats-grid {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+
+        .stat-card {
+          padding: 10px;
+          font-size: 12px;
+        }
+
+        .stat-card strong {
+          font-size: 16px;
+          margin-bottom: 2px;
+        }
+
+        .stat-card span {
+          font-size: 10px;
+        }
+
+        /* Filter controls */
+        .filter-group label {
+          font-size: 11px;
+          margin-bottom: 4px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+          padding: 8px;
+          font-size: 12px;
+          min-height: 36px;
+        }
+
+        .filter-buttons {
+          gap: 4px;
+          margin-top: 8px;
+        }
+
+        .filter-buttons button {
+          padding: 8px 8px;
+          font-size: 11px;
+          min-height: 36px;
+        }
+
+        /* Legend adjustments */
+        .legend-container {
+          padding: 8px 10px;
+        }
+
+        .legend-item {
+          font-size: 12px;
+          margin-bottom: 6px;
+        }
+
+        .legend-color {
+          width: 18px;
+          height: 18px;
+        }
+
+        /* Layer items */
+        .layer-item {
+          padding: 8px 0;
+          font-size: 12px;
+        }
+
+        .layer-item input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          min-height: 36px;
+        }
+
+        /* Property items */
+        .property-item {
+          padding: 10px 12px;
+        }
+
+        .property-item-title {
+          font-size: 13px;
+        }
+
+        .property-item-meta {
+          font-size: 10px;
+        }
+
+        .property-badge {
+          padding: 1px 6px;
+          font-size: 10px;
+        }
+      }
     </style>
     <title></title>
   </head>
@@ -555,7 +830,7 @@
     </div>
 
     <!-- Left Sidebar -->
-    <div id="sidebar">
+    <div id="sidebar" class="collapsed">
       <div class="sidebar-header">
         <h2>Properties</h2>
       </div>
@@ -607,6 +882,19 @@
           <div class="filter-buttons">
             <button id="filter-reset-btn">Reset</button>
             <button id="filter-apply-btn" class="active">Apply</button>
+          </div>
+        </div>
+
+        <!-- Layers -->
+        <div class="sidebar-section">
+          <h3>🗺️ Layers</h3>
+          <div class="layer-item">
+            <input type="checkbox" id="layer-toggle-background" checked />
+            <label for="layer-toggle-background">Background</label>
+          </div>
+          <div class="layer-item">
+            <input type="checkbox" id="layer-toggle-properties" checked />
+            <label for="layer-toggle-properties">Properties</label>
           </div>
         </div>
 
@@ -670,7 +958,7 @@
 
     <div id="map"></div>
 
-    <!-- Search + Sync Controls -->
+    <!-- Search Controls -->
     <div class="property-search-control" id="searchControl">
       <div class="search-row">
         <input
@@ -688,11 +976,11 @@
         </button>
       </div>
       <div id="search-message"></div>
-      <!-- Sync status pill — click to manually refresh from Sheets -->
-      <div id="sync-indicator" title="Click to refresh data from Google Sheets">
-        <div id="sync-dot"></div>
-        <span id="sync-label">Not synced</span>
-      </div>
+    </div>
+    <!-- Sync status pill — click to manually refresh from Sheets -->
+    <div id="sync-indicator" title="Click to refresh data from Google Sheets">
+      <div id="sync-dot"></div>
+      <span id="sync-label">Not synced</span>
     </div>
     <button
       id="overview-btn"
@@ -723,6 +1011,31 @@
 
       sidebarToggleBtn.addEventListener("click", function () {
         sidebar.classList.toggle("collapsed");
+      });
+
+      // ================================================================
+      // LAYER TOGGLE FUNCTIONALITY
+      // ================================================================
+      var layerToggles = {
+        "layer-toggle-background": null,
+        "layer-toggle-properties": null,
+      };
+
+      // Set up layer toggle listeners
+      Object.keys(layerToggles).forEach(function (id) {
+        var checkbox = document.getElementById(id);
+        if (checkbox) {
+          checkbox.addEventListener("change", function () {
+            var layer = layerToggles[id];
+            if (layer) {
+              if (this.checked) {
+                map.addLayer(layer);
+              } else {
+                map.removeLayer(layer);
+              }
+            }
+          });
+        }
       });
 
       // ================================================================
@@ -1185,6 +1498,7 @@
       });
       bounds_group.addLayer(layer_background_1);
       map.addLayer(layer_background_1);
+      layerToggles["layer-toggle-background"] = layer_background_1;
 
       // Declared here so search code below can reference it after initMap() runs
       var layer_properties_2;
@@ -1315,6 +1629,7 @@
         });
         bounds_group.addLayer(layer_properties_2);
         map.addLayer(layer_properties_2);
+        layerToggles["layer-toggle-properties"] = layer_properties_2;
         setBounds();
 
         // Initialize sidebar content
