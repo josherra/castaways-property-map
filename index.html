@@ -361,6 +361,7 @@
         bottom: 16px;
         left: 16px;
         z-index: 1000;
+        font-family: "Segoe UI", system-ui, sans-serif;
       }
 
       /* ── Sync Indicator ── */
@@ -535,24 +536,6 @@
       #search-clear-btn:hover {
         color: #475569;
       }
-      #search-message {
-        background: #fff;
-        border-radius: 6px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        padding: 7px 12px;
-        font-size: 13px;
-        display: none;
-        max-width: 260px;
-        border-left: 3px solid #3b82f6;
-      }
-      #search-message.error {
-        border-left-color: #ef4444;
-        color: #b91c1c;
-      }
-      #search-message.success {
-        border-left-color: #22c55e;
-        color: #15803d;
-      }
       /* ── Zoom-dependent property labels ── */
       .leaflet-tooltip.property-label {
         background: rgba(255, 255, 255, 0.85);
@@ -642,13 +625,18 @@
         .sidebar-toggle {
           left: calc(85vw + 8px);
           top: 8px;
-          width: 32px;
-          height: 32px;
+          width: 36px;
+          height: 36px;
+          border-radius: 999px;
+          background: #fff;
+          border-color: #d0d7de;
+          color: #0f172a;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
         }
 
         #sidebar.collapsed ~ .sidebar-toggle {
           left: 8px;
-          top: 80px;
+          top: 8px; /* align with search bar */
         }
 
         .sidebar-header h2 {
@@ -669,45 +657,72 @@
           margin: 0 0 8px 0;
         }
 
-        /* Search control adjustment */
+        /* ── Mobile pill search bar ── */
         .property-search-control {
+          position: fixed;
+          top: 8px;
+          left: 52px; /* hamburger width (36px) + 8px left margin + 8px gap */
           right: 8px;
-          top: 45px;
-          gap: 4px;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 6px;
         }
 
         .search-row {
-          flex-direction: column;
-          border-radius: 6px;
-          overflow: visible;
+          flex-direction: row;
+          border-radius: 999px;
+          overflow: hidden;
+          border: 1.5px solid #d0d7de;
+          background: #ffffff;
+          box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
+          transition:
+            border-color 0.25s,
+            box-shadow 0.25s;
+        }
+
+        .search-row:focus-within {
+          border-color: #3b82f6;
+          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.28);
         }
 
         #property-search-input {
-          width: 100%;
-          padding: 8px 10px;
-          border: 1px solid #d0d7de;
-          border-radius: 6px 6px 0 0;
-          font-size: 12px;
+          flex: 1;
+          width: auto;
+          padding: 10px 14px;
+          border: none;
+          border-radius: 0;
+          font-size: 14px;
+          background: transparent;
+          color: #1e293b;
+        }
+
+        #property-search-input::placeholder {
+          color: #94a3b8;
         }
 
         .search-row button {
-          width: 100%;
+          width: auto;
           border-radius: 0;
         }
 
-        #property-search-btn {
-          padding: 8px 10px;
-          border-radius: 0 0 6px 6px;
-        }
-
         #search-clear-btn {
-          padding: 8px 10px;
+          padding: 10px 8px;
+          color: #94a3b8;
+          background: transparent;
         }
 
-        #search-message {
-          max-width: calc(100vw - 32px);
-          font-size: 12px;
-          padding: 6px 10px;
+        #search-clear-btn:hover {
+          color: #475569;
+        }
+
+        #property-search-btn {
+          padding: 10px 14px;
+          border-radius: 0 999px 999px 0;
+          background: #3b82f6;
+        }
+
+        #property-search-btn svg {
+          stroke: #fff;
         }
 
         /* Sync indicator adjustments */
@@ -718,11 +733,26 @@
           font-size: 11px;
         }
 
-        /* Overview button */
+        /* Overview button — bottom centre on mobile */
         .overview-control {
+          top: auto;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
           font-size: 12px;
-          padding: 8px 12px;
-          top: 12px;
+          padding: 10px 20px;
+          border-radius: 999px;
+        }
+        .overview-control.visible {
+          transform: translateX(-50%);
+        }
+        .overview-control:hover {
+          transform: translateX(-50%) translateY(-1px);
+        }
+
+        /* Hide Leaflet zoom controls on mobile */
+        .leaflet-control-zoom {
+          display: none !important;
         }
 
         /* Property list max height */
@@ -975,7 +1005,6 @@
           </svg>
         </button>
       </div>
-      <div id="search-message"></div>
     </div>
     <!-- Sync status pill — click to manually refresh from Sheets -->
     <div id="sync-indicator" title="Click to refresh data from Google Sheets">
@@ -1653,17 +1682,7 @@
       var searchInput = document.getElementById("property-search-input");
       var searchBtn = document.getElementById("property-search-btn");
       var clearBtn = document.getElementById("search-clear-btn");
-      var searchMessage = document.getElementById("search-message");
       var lastHighlightedLayer = null;
-
-      function showMessage(text, type) {
-        searchMessage.textContent = text;
-        searchMessage.className = type;
-        searchMessage.style.display = "block";
-      }
-      function hideMessage() {
-        searchMessage.style.display = "none";
-      }
 
       function clearActivePropertyItem() {
         document.querySelectorAll(".property-item").forEach(function (el) {
@@ -1683,7 +1702,6 @@
         var query = searchInput.value.trim().toLowerCase();
         if (!query || !layer_properties_2) return;
         resetHighlight();
-        hideMessage();
         var found = false;
         layer_properties_2.eachLayer(function (layer) {
           if (found) return;
@@ -1715,14 +1733,12 @@
         clearBtn.style.display = this.value ? "flex" : "none";
         if (!this.value) {
           resetHighlight();
-          hideMessage();
         }
       });
       clearBtn.addEventListener("click", function () {
         searchInput.value = "";
         clearBtn.style.display = "none";
         resetHighlight();
-        hideMessage();
         searchInput.focus();
       });
 
